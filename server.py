@@ -18,8 +18,13 @@ while True:
         pass
     for x in players:  # Проходимся по списку
         try:
-            data = x.recv(1024).decode()  # считываем команды игроков
+            #x.send("LOL".encode())
+            data = x.recv(10).decode()  # считываем команды игроков
             print("Получил", data)
         except:
+            # players.remove(x)
+            # x.close()
+            # print("Сокет закрыт")
+
             pass
     time.sleep(1)
