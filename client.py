@@ -23,6 +23,7 @@ while run:
             pos = pygame.mouse.get_pos()# Узнаём к координаты мышки
             vector = pos[0] - CC[0], pos[1] - CC[1]
             lenv = math.sqrt(vector[0]**2 + vector[1]**2)
+            vector = vector[0] / lenv, vector[1] / lenv
             if lenv <= radius:
                 vector = 0, 0
             if vector != old:#сравниваем нынешние координаты и старые
@@ -33,6 +34,6 @@ while run:
     pygame.draw.circle(dis, 'red', CC, radius)
     pygame.display.update()
     #sock.send("Привет".encode())  # Мы отправляем команду и кодируем
-    #data = sock.recv(1024).decode()
-    #print("Получил", data)
+    data = sock.recv(1024).decode()
+    print("Получил", data)
 pygame.quit()
