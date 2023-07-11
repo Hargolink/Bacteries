@@ -22,9 +22,17 @@ while True:
             data = x.recv(10).decode()  # считываем команды игроков
             print("Получил", data)
         except:
+
             # players.remove(x)
             # x.close()
             # print("Сокет закрыт")
+    for x in players:
+        try:
+            x.send("LOL".encode())
+        except:
+            players.remove(x)
+            x.close()
+            print("Сокет закрыт")
 
             pass
     time.sleep(1)
