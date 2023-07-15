@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import sessionmaker
+import pygame
 
 
 
@@ -19,6 +20,14 @@ Base = declarative_base()
 Session = sessionmaker(bind=engine)
 s = Session()
 
+pygame.init()
+WIDTH_ROOM, HEIGHT_ROOM = 4000, 4000
+WIDTH_SERVER, HEIGHT_SERVER = 300, 300
+FPS = 60
+dis = pygame.display.set_mode((WIDTH_SERVER, HEIGHT_SERVER))
+pygame.display.set_caption("Сервер")
+clock = pygame.time.Clock()
+
 class Player(Base):
     __tablename__ = 'gamers'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -31,6 +40,9 @@ class Player(Base):
     abs_speed = Column(Integer, default=1)
     speed_x = Column(Integer, default=0)
     speed_y = Column(Integer, default=0)
+    def __init__(self, name, address):
+        self.name = name
+        self.address = address
 Base.metadata.create_all(engine)
 
 class LocalPlayer:
@@ -49,8 +61,10 @@ class LocalPlayer:
         self.speed_y = 0
 
 players = {}
+works = True
 
-while True:
+while works:
+    clock.tick(FPS)
     try:
         new_socket, addr = main_socket.accept()  # Принимаем входящие
         print('Подключился', addr)
@@ -83,4 +97,24 @@ while True:
             s.query(Player).filter(Player.id == x).delete()
             s.commit()
             print("Сокет закрыт")
-    time.sleep(1)
+    for event in pygame.event.get():
+        if event == pygame.QUIT:
+            works = False
+    dis.fill('black')
+    for id in players:
+        player = players[id]
+        x = player.x * WIDTH_SERVER // WIDTH_ROOM
+        y = player.y * HEIGHT_SERVER // HEIGHT_ROOM
+        size = player.size * HEIGHT_SERVER // HEIGHT_ROOM
+        pygame.draw.circle(dis, 'red', (x, y), size)
+    pygame.display.update()
+
+
+pygame.quit()
+
+main_socket.close()
+s.query(Player).delete()
+s.commit()
+
+
+

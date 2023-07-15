@@ -30,10 +30,13 @@ while run:
                 old = vector#Заменяем координаты
                 msg = f"<{vector[0]}, {vector[1]}>"# В msg хранятся новые координаты
                 sock.send(msg.encode())
+    data = sock.recv(1024).decode()
+    print("Получил", data)
     dis.fill('gray')
     pygame.draw.circle(dis, 'red', CC, radius)
     pygame.display.update()
     #sock.send("Привет".encode())  # Мы отправляем команду и кодируем
-    data = sock.recv(1024).decode()
-    print("Получил", data)
 pygame.quit()
+
+
+
