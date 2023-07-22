@@ -25,6 +25,7 @@ WIDTH_ROOM, HEIGHT_ROOM = 4000, 4000
 WIDTH_SERVER, HEIGHT_SERVER = 300, 300
 FPS = 60
 dis = pygame.display.set_mode((WIDTH_SERVER, HEIGHT_SERVER))
+
 pygame.display.set_caption("Сервер")
 clock = pygame.time.Clock()
 

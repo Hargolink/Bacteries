@@ -36,6 +36,7 @@ while run:
     pygame.draw.circle(dis, 'red', CC, radius)
     pygame.display.update()
     #sock.send("Привет".encode())  # Мы отправляем команду и кодируем
+
 pygame.quit()
 
 
