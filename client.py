@@ -26,8 +26,8 @@ while run:
             vector = vector[0] / lenv, vector[1] / lenv
             if lenv <= radius:
                 vector = 0, 0
-            if vector != old:#сравниваем нынешние координаты и старые
-                old = vector#Заменяем координаты
+            if vector != old:# сравниваем нынешние координаты и старые
+                old = vector# Заменяем координаты
                 msg = f"<{vector[0]},{vector[1]}>"# В msg хранятся новые координаты
                 sock.send(msg.encode())
     data = sock.recv(1024).decode()
@@ -35,7 +35,8 @@ while run:
     dis.fill('gray')
     pygame.draw.circle(dis, 'red', CC, radius)
     pygame.display.update()
-    #sock.send("Привет".encode())  # Мы отправляем команду и кодируем
+    #sock.send("Привет".encode())
+    # Мы отправляем команду и кодируем
 
 pygame.quit()
 

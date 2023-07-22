@@ -36,7 +36,7 @@ def find(vector):
             first = num
         if sign == '>' and first is not None:
             second = num
-            result = map(int, vector[first + 1:second].split(","))
+            result = map(float, vector[first + 1:second].split(","))
             return result
     return ''
 
@@ -96,7 +96,7 @@ while works:
         player = Player("Имя", addr)
         s.merge(player)
         s.commit()
-        addr = f'({addr[0]}, {addr[1]})'
+        addr = f'({addr[0]},{addr[1]})'
         data = s.query(Player).filter(Player.address == addr)
         for x in data:
             player = LocalPlayer(x.id, 'Имя', new_socket, addr)
