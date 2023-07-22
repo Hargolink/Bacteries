@@ -28,7 +28,7 @@ while run:
                 vector = 0, 0
             if vector != old:#сравниваем нынешние координаты и старые
                 old = vector#Заменяем координаты
-                msg = f"<{vector[0]}, {vector[1]}>"# В msg хранятся новые координаты
+                msg = f"<{vector[0]},{vector[1]}>"# В msg хранятся новые координаты
                 sock.send(msg.encode())
     data = sock.recv(1024).decode()
     print("Получил", data)
