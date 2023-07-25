@@ -1,11 +1,59 @@
 import socket
+import tkinter as tk
+from tkinter import ttk
+import tkinter.messagebox
 import math
 import pygame
+
+name = ""
+color = ""
+
+win = tk.Tk()
+win.geometry('300x200')
+win.title("Авторизация")
+style = ttk.Style()
+#style.theme_use('combo')
+name_lbl = tk.Label(win, text="Введите свой никнейм")
+name_lbl.pack()
+row = tk.Entry(win, width=30, justify="center")
+row.pack()
+label_col = tk.Label(win, text = "Выберите цвет")
+label_col.pack()
+colors = ['Maroon', 'DarkRed', 'FireBrick', 'Red', 'Salmon', 'Tomato',
+         'Coral', 'OrangeRed', 'Chocolate', 'SandyBrown', 'DarkOrange',
+         'Orange', 'DarkGoldenrod', 'Goldenrod', 'Gold', 'Olive', 'Yellow',
+         'YellowGreen', 'GreenYellow', 'Chartreuse', 'LawnGreen', 'Green',
+         'Lime', 'SpringGreen', 'MediumSpringGreen', 'Turquoise', 'LightSeaGreen',
+         'MediumTurquoise', 'Teal', 'DarkCyan', 'Aqua', 'Cyan', 'DeepSkyBlue', 'DodgerBlue',
+         'RoyalBlue', 'Navy', 'DarkBlue', 'MediumBlue']
+
+def login():
+    global name
+    name = row.get()
+    if name and color:
+        win.destroy()
+        win.quit()
+    else:
+        tk.messagebox.showerror("Ошибка", "Ты не выбрал цвет или не ввёл имя!")
+
+def scroll(event):
+    global color
+    color = combo.get()
+    style.configure("TCombobox", fieldbackground=color, background="white")
+
+combo = ttk.Combobox(win, values=colors, textvariable=color)
+combo.bind("<<ComboboxSelected>>", scroll)
+combo.pack()
+
+but = tk.Button(win, text='Зайти в игру', command=login)
+but.pack()
+win.mainloop()
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Настраиваем сокет
 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Отключение пакетирование
 
 sock.connect(("localhost", 15200))  # Подключаемся к server через ip и порт
+sock.send(("color:<" + name + "," + color + ">").encode())
 pygame.init()
 WIDTH = 800
 HEIGHT = 600
@@ -33,7 +81,7 @@ while run:
     data = sock.recv(1024).decode()
     print("Получил", data)
     dis.fill('gray')
-    pygame.draw.circle(dis, 'red', CC, radius)
+    pygame.draw.circle(dis, color, CC, radius)
     pygame.display.update()
     #sock.send("Привет".encode())
     # Мы отправляем команду и кодируем
