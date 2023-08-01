@@ -40,6 +40,17 @@ def find(vector):
             return result
     return ''
 
+def find_color(info):
+    first = None
+    for num, sign in enumerate(info):
+        if sign == '<':
+            first = num
+        if sign == '>' and first is not None:
+            second = num
+            result = info[first + 1:second].split(",")
+            return result
+    return ''
+
 class Player(Base):
     __tablename__ = 'gamers'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -52,6 +63,9 @@ class Player(Base):
     abs_speed = Column(Integer, default=2)
     speed_x = Column(Integer, default=2)
     speed_y = Column(Integer, default=2)
+    color = Column(String(250), default='red')
+    w_vision = Column(Integer, default=800)
+    h_vision = Column(Integer, default=600)  # Добавили размер
     def __init__(self, name, address):
         self.name = name
         self.address = address
@@ -71,6 +85,9 @@ class LocalPlayer:
         self.abs_speed = 1
         self.speed_x = 0
         self.speed_y = 0
+        self.color = "red"
+        self.w_vision = 800
+        self.h_vision = 600
     def update(self):
         self.x += self.speed_x
         self.y += self.speed_y
@@ -93,7 +110,11 @@ while works:
         new_socket, addr = main_socket.accept()  # Принимаем входящие
         print('Подключился', addr)
         new_socket.setblocking(False)  # блокируем завершение программы только уже новый сокет
+        login = new_socket.recv(1024).decode()
         player = Player("Имя", addr)
+        if login.startswith("color"):
+            data = find_color(login[6:])
+            player.name, player.color = data
         s.merge(player)
         s.commit()
         addr = f'({addr[0]},{addr[1]})'
@@ -104,6 +125,19 @@ while works:
 
     except BlockingIOError:  # Ничего не делаем в случае ошибки
         pass
+
+    visible_bacteries = {}
+    for x in list(players):
+        visible_bacteries[x] = []
+    pairs = list(players.items())
+    for i in range(0, len(pairs)):
+        for j in range(i + 1, len(pairs)):
+            hero_1: Player = pairs[i][1]
+            hero_2: Player = pairs[j][1]
+            dist_x = abs(hero_2.x - hero_1.x)
+            dist_y = abs(hero_2.y - hero_1.y)
+            if dist_x <= hero_1.w_vision // 2 + hero_2.size and dist_y <= hero_1.h_vision // 2 + hero_2.size: # Нужно доделать зона видимости
+                pass
 
     for x in list(players):  # Проходимся по списку
         try:
@@ -131,7 +165,7 @@ while works:
         x = player.x * WIDTH_SERVER // WIDTH_ROOM
         y = player.y * HEIGHT_SERVER // HEIGHT_ROOM
         size = player.size * HEIGHT_SERVER // HEIGHT_ROOM
-        pygame.draw.circle(dis, 'red', (x, y), size)
+        pygame.draw.circle(dis, player.color, (x, y), size)
     for id in players:
         player = players[id]
         player.update()
