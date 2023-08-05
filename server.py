@@ -69,6 +69,21 @@ class Player(Base):
     def __init__(self, name, address):
         self.name = name
         self.address = address
+
+    def sync(self):
+        self.db.size = self.size
+        self.db.abs.speed = self.abs.speed
+        self.db.speed_x = self.speed_x
+        self.db.speed_y = self.speed_y
+        self.db.errors = self.errors
+        self.db.x = self.x
+        self.db.y = self.y
+        self.db.color = self.color
+        self.db.w_vision = self.w_vision
+        self.db.h_vision = self.h_vision
+        s.merge(self.db)
+        s.commit()
+
 Base.metadata.create_all(engine)
 
 class LocalPlayer:
@@ -137,6 +152,26 @@ while works:
             dist_x = abs(hero_2.x - hero_1.x)
             dist_y = abs(hero_2.y - hero_1.y)
             if dist_x <= hero_1.w_vision // 2 + hero_2.size and dist_y <= hero_1.h_vision // 2 + hero_2.size: # Нужно доделать зона видимости
+                x_ = str(round(dist_x))
+                y_ = str(round(dist_y))
+                size_ = str(round(hero_2.size))
+                color_ = hero_2.color
+                data = x_ + " " + y_ + " " + size_ + " " + color_
+                visible_bacteries[hero_1.id].append(data)
+
+            if dist_x <= hero_2.w_vision // 2 + hero_1.size and dist_y <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимости
+                x_ = str(round(-dist_x))
+                y_ = str(round(-dist_y))
+                size_ = str(round(hero_1.size))
+                color_ = hero_1.color
+                data = x_ + " " + y_ + " " + size_ + " " + color_
+                visible_bacteries[hero_2.id].append(data)
+        for id in list(players):
+            visible_bacteries[id] = "<" + ",".join(visible_bacteries[id]) + ">"
+            try:
+                players[id].sock.send(visible_bacteries[id].encode())
+
+            except:
                 pass
 
     for x in list(players):  # Проходимся по списку

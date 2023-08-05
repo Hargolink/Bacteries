@@ -36,6 +36,26 @@ def login():
     else:
         tk.messagebox.showerror("Ошибка", "Ты не выбрал цвет или не ввёл имя!")
 
+def find(vector:str):
+    first = None
+    for num, sign in enumerate(vector):
+        if sign == '<':
+            first = num
+        if sign == '>' and first is not None:
+            second = num
+            result = map(float, vector[first + 1:second].split(","))
+            return result
+    return ''
+
+def draw_bacteria(data:list[str]):
+    for num, bac in enumerate(data):
+        data = bac.split(" ")
+        x = CC[0] + int(data[0])
+        y = CC[1] + int(data[1])
+        size = int(data[2])
+        color = data[3]
+        pygame.draw.circle(dis, color, (x, y), size)
+
 def scroll(event):
     global color
     color = combo.get()
@@ -82,6 +102,8 @@ while run:
     print("Получил", data)
     dis.fill('gray')
     pygame.draw.circle(dis, color, CC, radius)
+    if data != [""]:
+        draw_bacteria(data)
     pygame.display.update()
     #sock.send("Привет".encode())
     # Мы отправляем команду и кодируем
