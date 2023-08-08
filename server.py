@@ -84,6 +84,20 @@ class Player(Base):
         s.merge(self.db)
         s.commit()
 
+    def load(self):
+        self.size = self.db.size
+        self.abs.speed = self.db.abs.speed
+        self.speed_x = self.db.speed_x
+        self.speed_y = self.db.speed_y
+        self.errors = self.db.errors
+        self.x = self.db.x
+        self.y = self.db.y
+        self.color = self.db.color
+        self.w_vision = self.db.w_vision
+        self.h_vision = self.db.h_vision
+        s.merge(self.db)
+        s.commit()
+
 Base.metadata.create_all(engine)
 
 class LocalPlayer:
