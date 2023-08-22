@@ -1,3 +1,4 @@
+import random
 import time
 import socket
 import psycopg2
@@ -5,10 +6,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import sessionmaker
+from russian_names import RussianNames
 import pygame
 
 
+colors = ['Maroon', 'DarkRed', 'FireBrick', 'Red', 'Salmon', 'Tomato',
+         'Coral', 'OrangeRed', 'Chocolate', 'SandyBrown', 'DarkOrange',
+         'Orange', 'DarkGoldenrod', 'Goldenrod', 'Gold', 'Olive', 'Yellow',
+         'YellowGreen', 'GreenYellow', 'Chartreuse', 'LawnGreen', 'Green',
+         'Lime', 'SpringGreen', 'MediumSpringGreen', 'Turquoise', 'LightSeaGreen',
+         'MediumTurquoise', 'Teal', 'DarkCyan', 'Aqua', 'Cyan', 'DeepSkyBlue', 'DodgerBlue',
+         'RoyalBlue', 'Navy', 'DarkBlue', 'MediumBlue']
 
+
+MOBS_QUANTITY = 25
 main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Настраиваем сокет
 main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Отключение пакетирование
 main_socket.bind(("localhost", 15200))  # ip и порт привязываем к сокету
@@ -70,6 +81,57 @@ class Player(Base):
         self.name = name
         self.address = address
 
+Base.metadata.create_all(engine)
+
+class LocalPlayer:
+    def __init__(self, id, name, sock, addr):
+        self.id = id
+        self.db: Player = s.get(Player, self.id)
+        self.sock = sock
+        self.name = name
+        self.address = addr
+        self.x = 500
+        self.y = 500
+        self.size = 50
+        self.errors = 0
+        self.abs_speed = 1
+        self.speed_x = 0
+        self.speed_y = 0
+        self.color = "red"
+        self.w_vision = 800
+        self.h_vision = 600
+
+    def update(self):
+        self.x += self.speed_x
+        self.y += self.speed_y
+        if self.x - self.size <= 0:
+            if self.speed_x >= 0:
+                self.x += self.speed_x
+        elif self.x + self.size >= WIDTH_ROOM:
+            if self.speed_x <= 0:
+                self.x += self.speed_x
+        else:
+            self.x += self.speed_x
+
+        if self.y - self.size <= 0:
+            if self.speed_y >= 0:
+                self.y += self.speed_y
+        elif self.y + self.size >= HEIGHT_ROOM:
+            if self.speed_y <= 0:
+                self.y += self.speed_y
+        else:
+            self.y += self.speed_y
+
+
+    def change_speed(self, vector):
+        vector = find(vector)
+        if vector[0] == 0 and vector[1] == 0:
+            self.speed_x = 0
+            self.speed_y = 0
+        else:
+            vector = vector[0] * self.abs_speed, vector[1] * self.abs_speed
+            self.speed_x = vector[0], self.speed_y = vector[1]
+
     def sync(self):
         self.db.size = self.size
         self.db.abs.speed = self.abs.speed
@@ -98,40 +160,26 @@ class Player(Base):
         s.merge(self.db)
         s.commit()
 
-Base.metadata.create_all(engine)
-
-class LocalPlayer:
-    def __init__(self, id, name, sock, addr):
-        self.id = id
-        self.db: Player = s.get(Player, self.id)
-        self.sock = sock
-        self.name = name
-        self.address = addr
-        self.x = 500
-        self.y = 500
-        self.size = 50
-        self.errors = 0
-        self.abs_speed = 1
-        self.speed_x = 0
-        self.speed_y = 0
-        self.color = "red"
-        self.w_vision = 800
-        self.h_vision = 600
-    def update(self):
-        self.x += self.speed_x
-        self.y += self.speed_y
-    def change_speed(self, vector):
-        vector = find(vector)
-        if vector[0] == 0 and vector[1] == 0:
-            self.speed_x = 0
-            self.speed_y = 0
-        else:
-            vector = vector[0] * self.abs_speed, vector[1] * self.abs_speed
-            self.speed_x = vector[0], self.speed_y = vector[1]
-
 
 players = {}
 works = True
+
+names = RussianNames(count = MOBS_QUANTITY * 2, patronymic = False, surname = False, rare = True)
+names = list(set(names))
+for x in range(MOBS_QUANTITY):
+    mob1 = Player(names[x], None)
+    mob1.color = random.choice(colors)
+    mob1.x = random.randint(0, WIDTH_ROOM)
+    mob1.y = random.randint(0, HEIGHT_ROOM)
+    mob1.speed_x = random.randint(-1, 1)
+    mob1.speed_y = random.randint(-1, 1)
+    mob1.size = random.randint(10, 100)
+    s.add(mob1)
+    s.commit()
+    locale_mob = LocalPlayer(mob1.id, mob1.name, None, None)
+    players[mob1.id] = locale_mob
+
+
 
 while works:
     clock.tick(FPS)
@@ -165,28 +213,32 @@ while works:
             hero_2: Player = pairs[j][1]
             dist_x = abs(hero_2.x - hero_1.x)
             dist_y = abs(hero_2.y - hero_1.y)
-            if dist_x <= hero_1.w_vision // 2 + hero_2.size and dist_y <= hero_1.h_vision // 2 + hero_2.size: # Нужно доделать зона видимости
-                x_ = str(round(dist_x))
-                y_ = str(round(dist_y))
-                size_ = str(round(hero_2.size))
-                color_ = hero_2.color
-                data = x_ + " " + y_ + " " + size_ + " " + color_
-                visible_bacteries[hero_1.id].append(data)
+            if abs(dist_x) <= hero_1.w_vision // 2 + hero_2.size and abs(dist_y) <= hero_1.h_vision // 2 + hero_2.size: # Нужно доделать зона видимости
+                if hero_1.address is not None:
+                    x_ = str(round(dist_x))
+                    y_ = str(round(dist_y))
+                    size_ = str(round(hero_2.size))
+                    color_ = hero_2.color
+                    data = x_ + " " + y_ + " " + size_ + " " + color_
+                    visible_bacteries[hero_1.id].append(data)
 
-            if dist_x <= hero_2.w_vision // 2 + hero_1.size and dist_y <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимости
-                x_ = str(round(-dist_x))
-                y_ = str(round(-dist_y))
-                size_ = str(round(hero_1.size))
-                color_ = hero_1.color
-                data = x_ + " " + y_ + " " + size_ + " " + color_
-                visible_bacteries[hero_2.id].append(data)
+            if abs(dist_x) <= hero_2.w_vision // 2 + hero_1.size and abs(dist_y) <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимости
+                if hero_2.address is not None:
+                    x_ = str(round(-dist_x))
+                    y_ = str(round(-dist_y))
+                    size_ = str(round(hero_1.size))
+                    color_ = hero_1.color
+                    data = x_ + " " + y_ + " " + size_ + " " + color_
+                    visible_bacteries[hero_2.id].append(data)
+
         for id in list(players):
-            visible_bacteries[id] = "<" + ",".join(visible_bacteries[id]) + ">"
-            try:
-                players[id].sock.send(visible_bacteries[id].encode())
+            if players[id].sock is not None:
+                visible_bacteries[id] = "<" + ",".join(visible_bacteries[id]) + ">"
+                try:
+                    players[id].sock.send(visible_bacteries[id].encode())
 
-            except:
-                pass
+                except:
+                    pass
 
     for x in list(players):  # Проходимся по списку
         try:
@@ -195,16 +247,19 @@ while works:
             players[x].change_speed(data)
         except:
             pass
+        else:
+            vector = f'{random.randint(-1, 1)}, {random.randint(-1, 1)}'
 
     for x in list(players):
-        try:
-            players[x].sock.send("Игра".encode())
-        except:
-            players[x].sock.close()
-            del players[x]
-            s.query(Player).filter(Player.id == x).delete()
-            s.commit()
-            print("Сокет закрыт")
+        if players[id].sock is not None:
+            try:
+                players[x].sock.send("Игра".encode())
+            except:
+                players[x].sock.close()
+                del players[x]
+                s.query(Player).filter(Player.id == x).delete()
+                s.commit()
+                print("Сокет закрыт")
     for event in pygame.event.get():
         if event == pygame.QUIT:
             works = False
