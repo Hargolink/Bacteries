@@ -1,6 +1,7 @@
 import random
 import time
 import socket
+import math
 import psycopg2
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
@@ -178,30 +179,36 @@ for x in range(MOBS_QUANTITY):
     s.commit()
     locale_mob = LocalPlayer(mob1.id, mob1.name, None, None)
     players[mob1.id] = locale_mob
+tick = -1
+server_work = True
+while server_work:
+    clock.tick(FPS)
+    tick += 1
 
 
 
 while works:
     clock.tick(FPS)
-    try:
-        new_socket, addr = main_socket.accept()  # Принимаем входящие
-        print('Подключился', addr)
-        new_socket.setblocking(False)  # блокируем завершение программы только уже новый сокет
-        login = new_socket.recv(1024).decode()
-        player = Player("Имя", addr)
-        if login.startswith("color"):
-            data = find_color(login[6:])
-            player.name, player.color = data
-        s.merge(player)
-        s.commit()
-        addr = f'({addr[0]},{addr[1]})'
-        data = s.query(Player).filter(Player.address == addr)
-        for x in data:
-            player = LocalPlayer(x.id, 'Имя', new_socket, addr)
-            players[x.id] = player
+    if tick % 200 == 0:
+        try:
+            new_socket, addr = main_socket.accept()  # Принимаем входящие
+            print('Подключился', addr)
+            new_socket.setblocking(False)  # блокируем завершение программы только уже новый сокет
+            login = new_socket.recv(1024).decode()
+            player = Player("Имя", addr)
+            if login.startswith("color"):
+                data = find_color(login[6:])
+                player.name, player.color = data
+            s.merge(player)
+            s.commit()
+            addr = f'({addr[0]},{addr[1]})'
+            data = s.query(Player).filter(Player.address == addr)
+            for x in data:
+                player = LocalPlayer(x.id, 'Имя', new_socket, addr)
+                players[x.id] = player
 
-    except BlockingIOError:  # Ничего не делаем в случае ошибки
-        pass
+        except BlockingIOError:  # Ничего не делаем в случае ошибки
+            pass
 
     visible_bacteries = {}
     for x in list(players):
@@ -213,23 +220,37 @@ while works:
             hero_2: Player = pairs[j][1]
             dist_x = abs(hero_2.x - hero_1.x)
             dist_y = abs(hero_2.y - hero_1.y)
-            if abs(dist_x) <= hero_1.w_vision // 2 + hero_2.size and abs(dist_y) <= hero_1.h_vision // 2 + hero_2.size: # Нужно доделать зона видимости
-                if hero_1.address is not None:
-                    x_ = str(round(dist_x))
-                    y_ = str(round(dist_y))
-                    size_ = str(round(hero_2.size))
-                    color_ = hero_2.color
-                    data = x_ + " " + y_ + " " + size_ + " " + color_
-                    visible_bacteries[hero_1.id].append(data)
+            if abs(dist_x) <= hero_1.w_vision // 2 + hero_2.size and abs(dist_y) <= hero_1.h_vision // 2 + hero_2.size: # # Нужно доделать зона видимости
+                distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
+                if distn <= hero_1.size and hero_1 >= 1.1 * hero_2.size:
+                    hero_2.size, hero_2.speed_x, hero_2.speed_y = 0, 0, 0
+                    if hero_1.address is not None:
+                        x_ = str(round(dist_x))
+                        y_ = str(round(dist_y))
+                        size_ = str(round(hero_2.size))
+                        color_ = hero_2.color
+                        data = x_ + " " + y_ + " " + size_ + " " + color_
+                        visible_bacteries[hero_1.id].append(data)
 
             if abs(dist_x) <= hero_2.w_vision // 2 + hero_1.size and abs(dist_y) <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимости
-                if hero_2.address is not None:
-                    x_ = str(round(-dist_x))
-                    y_ = str(round(-dist_y))
-                    size_ = str(round(hero_1.size))
-                    color_ = hero_1.color
-                    data = x_ + " " + y_ + " " + size_ + " " + color_
-                    visible_bacteries[hero_2.id].append(data)
+                distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
+                if distn <= hero_2.size and hero_2 >= 1.1 * hero_1.size:
+                    hero_1.size, hero_1.speed_x, hero_1.speed_y = 0, 0, 0
+                    if hero_2.address is not None:
+                        x_ = str(round(-dist_x))
+                        y_ = str(round(-dist_y))
+                        size_ = str(round(hero_1.size))
+                        color_ = hero_1.color
+                        data = x_ + " " + y_ + " " + size_ + " " + color_
+                        visible_bacteries[hero_2.id].append(data)
+
+        for id in list(players):
+            if players[id].errors >= 500 or players[id].size == 0:
+                if players[id].sock is not None:
+                    players[id].sock.close()
+                del players[id]
+                s.query(Player).filter(Player.id == id).delete()
+                s.commit()
 
         for id in list(players):
             if players[id].sock is not None:
@@ -248,7 +269,9 @@ while works:
         except:
             pass
         else:
-            vector = f'{random.randint(-1, 1)}, {random.randint(-1, 1)}'
+            if tick % 400 == 0:
+                vector = f'{random.randint(-1, 1)}, {random.randint(-1, 1)}'
+                players[id].change_speed(vector)
 
     for x in list(players):
         if players[id].sock is not None:
@@ -282,6 +305,5 @@ pygame.quit()
 main_socket.close()
 s.query(Player).delete()
 s.commit()
-
 
 
