@@ -20,7 +20,7 @@ colors = ['Maroon', 'DarkRed', 'FireBrick', 'Red', 'Salmon', 'Tomato',
          'RoyalBlue', 'Navy', 'DarkBlue', 'MediumBlue']
 
 
-MOBS_QUANTITY = 25
+
 main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Настраиваем сокет
 main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Отключение пакетирование
 main_socket.bind(("localhost", 15200))  # ip и порт привязываем к сокету
@@ -37,6 +37,9 @@ WIDTH_ROOM, HEIGHT_ROOM = 4000, 4000
 WIDTH_SERVER, HEIGHT_SERVER = 300, 300
 FPS = 60
 dis = pygame.display.set_mode((WIDTH_SERVER, HEIGHT_SERVER))
+MOBS_QUANTITY = 25
+FOOD_SIZE = 15
+FOOD_QUANTITY = WIDTH_ROOM * HEIGHT_ROOM // 4000
 
 pygame.display.set_caption("Сервер")
 clock = pygame.time.Clock()
@@ -161,6 +164,15 @@ class LocalPlayer:
         s.merge(self.db)
         s.commit()
 
+class Food:
+    def __init__(self, x, y, size, color):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.color = color
+
+
+
 
 players = {}
 works = True
@@ -185,6 +197,10 @@ while server_work:
     clock.tick(FPS)
     tick += 1
 
+food_list = []
+for i in range(FOOD_QUANTITY):
+    food_list.append(Food(x = random.randint(0, WIDTH_ROOM), y = random.randint(0, HEIGHT_ROOM), size = FOOD_SIZE,
+                          color = random.choice(colors)))
 
 
 while works:
@@ -215,6 +231,15 @@ while works:
         visible_bacteries[x] = []
     pairs = list(players.items())
     for i in range(0, len(pairs)):
+        for food in food_list:
+            hero: LocalPlayer = pairs[i][1]
+            dist_x = food.x - hero.x
+            dist_y = food.y - hero.y # food.size = 0
+            if abs(dist_x) <= hero.w_vision // 2 + food.size and abs(dist_y) <= hero.h_vision // 2 + food.size:
+                distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
+                if distn < hero.size: #Нужно доделать if и добавить в него food.size = 0
+
+
         for j in range(i + 1, len(pairs)):
             hero_1: Player = pairs[i][1]
             hero_2: Player = pairs[j][1]
@@ -224,6 +249,7 @@ while works:
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
                 if distn <= hero_1.size and hero_1 >= 1.1 * hero_2.size:
                     hero_2.size, hero_2.speed_x, hero_2.speed_y = 0, 0, 0
+
                     if hero_1.address is not None:
                         x_ = str(round(dist_x))
                         y_ = str(round(dist_y))
