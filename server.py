@@ -45,6 +45,7 @@ pygame.display.set_caption("Сервер")
 clock = pygame.time.Clock()
 
 def find(vector):
+    global buffer
     first = None
     for num, sign in enumerate(vector):
         if sign == '<':
@@ -53,6 +54,7 @@ def find(vector):
             second = num
             result = map(float, vector[first + 1:second].split(","))
             return result
+    buffer = int(buffer * 1.5)
     return ''
 
 def find_color(info):
@@ -104,6 +106,7 @@ class LocalPlayer:
         self.color = "red"
         self.w_vision = 800
         self.h_vision = 600
+        self.L = 1
 
     def update(self):
         self.x += self.speed_x
@@ -125,7 +128,16 @@ class LocalPlayer:
                 self.y += self.speed_y
         else:
             self.y += self.speed_y
-
+        if self.size >= self.w_vision / 4:
+            if self.w_vision <= WIDTH_ROOM or self.h_vision <= HEIGHT_ROOM:
+                self.L *= 2
+                self.w_vision = 800 * self.L
+                self.h_vision = 600 * self.L
+        if self.size < self.w_vision / 8 and self.size < self.h_vision / 8:
+            if self.L > 1:
+                self.L //= 2
+                self.w_vision = 800 * self.L
+                self.h_vision = 600 * self.L
 
     def change_speed(self, vector):
         vector = find(vector)
@@ -135,6 +147,9 @@ class LocalPlayer:
         else:
             vector = vector[0] * self.abs_speed, vector[1] * self.abs_speed
             self.speed_x = vector[0], self.speed_y = vector[1]
+
+    def new_speed(self):
+        self.abs_speed = 10 / math.sqrt(self.size)
 
     def sync(self):
         self.db.size = self.size
@@ -152,7 +167,7 @@ class LocalPlayer:
 
     def load(self):
         self.size = self.db.size
-        self.abs.speed = self.db.abs.speed
+        self.abs_speed = self.db.abs_speed
         self.speed_x = self.db.speed_x
         self.speed_y = self.db.speed_y
         self.errors = self.db.errors
@@ -171,34 +186,41 @@ class Food:
         self.size = size
         self.color = color
 
+class Grid:
+    def __init__(self, screen, color):
+
+
 
 
 
 players = {}
 works = True
 
-names = RussianNames(count = MOBS_QUANTITY * 2, patronymic = False, surname = False, rare = True)
-names = list(set(names))
-for x in range(MOBS_QUANTITY):
-    mob1 = Player(names[x], None)
-    mob1.color = random.choice(colors)
-    mob1.x = random.randint(0, WIDTH_ROOM)
-    mob1.y = random.randint(0, HEIGHT_ROOM)
-    mob1.speed_x = random.randint(-1, 1)
-    mob1.speed_y = random.randint(-1, 1)
-    mob1.size = random.randint(10, 100)
-    s.add(mob1)
-    s.commit()
-    locale_mob = LocalPlayer(mob1.id, mob1.name, None, None)
-    players[mob1.id] = locale_mob
-tick = -1
-server_work = True
-while server_work:
-    clock.tick(FPS)
-    tick += 1
+need = MOBS_QUANTITY - len(players)
+if need >= 0:
+    names = RussianNames(count = MOBS_QUANTITY * 2, patronymic = False, surname = False, rare = True)
+    names = list(set(names))
+    for x in range(need):
+        mob1 = Player(names[x], None)
+        mob1.color = random.choice(colors)
+        mob1.x = random.randint(0, WIDTH_ROOM)
+        mob1.y = random.randint(0, HEIGHT_ROOM)
+        mob1.speed_x = random.randint(-1, 1)
+        mob1.speed_y = random.randint(-1, 1)
+        mob1.size = random.randint(10, 100)
+        s.add(mob1)
+        s.commit()
+        locale_mob = LocalPlayer(mob1.id, mob1.name, None, None).load()
+        players[mob1.id] = locale_mob
+    tick = -1
+    server_work = True
+    while server_work:
+        clock.tick(FPS)
+        tick += 1
 
 food_list = []
-for i in range(FOOD_QUANTITY):
+need = FOOD_QUANTITY - len(food_list)
+for i in range(need):
     food_list.append(Food(x = random.randint(0, WIDTH_ROOM), y = random.randint(0, HEIGHT_ROOM), size = FOOD_SIZE,
                           color = random.choice(colors)))
 
@@ -237,7 +259,18 @@ while works:
             dist_y = food.y - hero.y # food.size = 0
             if abs(dist_x) <= hero.w_vision // 2 + food.size and abs(dist_y) <= hero.h_vision // 2 + food.size:
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
-                if distn < hero.size: #Нужно доделать if и добавить в него food.size = 0
+                if distn < hero.size:
+                    hero.size = math.sqrt(hero.size ** 2 + food.size ** 2)
+                    hero.new_speed()
+                    food.size = 0
+                    food_list.remove(food)
+                    if hero.address is not None and food.size != 0:
+                        x_ = str(round(dist_x / hero.L))
+                        y_ = str(round(dist_y / hero.L))
+                        size_ = str(round(food.size / hero.L))
+                        color_ = food.color
+                        data = x_ + " " + y_ + " " + size_ + " " + color_
+                        visible_bacteries[hero.id].append(data)
 
 
         for j in range(i + 1, len(pairs)):
@@ -248,24 +281,28 @@ while works:
             if abs(dist_x) <= hero_1.w_vision // 2 + hero_2.size and abs(dist_y) <= hero_1.h_vision // 2 + hero_2.size: # # Нужно доделать зона видимости
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
                 if distn <= hero_1.size and hero_1 >= 1.1 * hero_2.size:
+                    hero_1.size = math.sqrt(hero_1.size ** 2 + hero_2.size ** 2)
+                    hero_1.new_speed()
                     hero_2.size, hero_2.speed_x, hero_2.speed_y = 0, 0, 0
 
                     if hero_1.address is not None:
-                        x_ = str(round(dist_x))
-                        y_ = str(round(dist_y))
-                        size_ = str(round(hero_2.size))
+                        x_ = str(round(dist_x / hero_1.L))
+                        y_ = str(round(dist_y / hero_1.L))
+                        size_ = str(round(hero_2.size / hero_1.L))
                         color_ = hero_2.color
                         data = x_ + " " + y_ + " " + size_ + " " + color_
                         visible_bacteries[hero_1.id].append(data)
 
-            if abs(dist_x) <= hero_2.w_vision // 2 + hero_1.size and abs(dist_y) <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимости
+            if abs(dist_x) <= hero_2.w_vision // 2 + hero_1.size and abs(dist_y) <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимос
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
                 if distn <= hero_2.size and hero_2 >= 1.1 * hero_1.size:
+                    hero_2.size = math.sqrt(hero_2.size ** 2 + hero_1.size ** 2)
+                    hero_2.new_speed()
                     hero_1.size, hero_1.speed_x, hero_1.speed_y = 0, 0, 0
                     if hero_2.address is not None:
-                        x_ = str(round(-dist_x))
-                        y_ = str(round(-dist_y))
-                        size_ = str(round(hero_1.size))
+                        x_ = str(round(-dist_x / hero_2.L))
+                        y_ = str(round(-dist_y / hero_2.L))
+                        size_ = str(round(hero_1.size / hero_2.L))
                         color_ = hero_1.color
                         data = x_ + " " + y_ + " " + size_ + " " + color_
                         visible_bacteries[hero_2.id].append(data)
@@ -280,6 +317,8 @@ while works:
 
         for id in list(players):
             if players[id].sock is not None:
+                r_ = str(round(players[id].size / players[id].L))
+                visible_bacteries[id] = [r_] + visible_bacteries[id]
                 visible_bacteries[id] = "<" + ",".join(visible_bacteries[id]) + ">"
                 try:
                     players[id].sock.send(visible_bacteries[id].encode())

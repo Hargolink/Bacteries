@@ -8,6 +8,7 @@ import pygame
 name = ""
 color = ""
 
+buffer = 1024
 win = tk.Tk()
 win.geometry('300x200')
 win.title("Авторизация")
@@ -98,12 +99,14 @@ while run:
                 old = vector# Заменяем координаты
                 msg = f"<{vector[0]},{vector[1]}>"# В msg хранятся новые координаты
                 sock.send(msg.encode())
-    data = sock.recv(1024).decode()
+    data = sock.recv(buffer).decode()
     print("Получил", data)
+    #print(data)
     dis.fill('gray')
     pygame.draw.circle(dis, color, CC, radius)
     if data != [""]:
-        draw_bacteria(data)
+        radius = int(data[0])
+        draw_bacteria(data[1:])
     pygame.display.update()
     #sock.send("Привет".encode())
     # Мы отправляем команду и кодируем
