@@ -13,7 +13,7 @@ win = tk.Tk()
 win.geometry('300x200')
 win.title("Авторизация")
 style = ttk.Style()
-#style.theme_use('combo')
+style.theme_use('clam')
 name_lbl = tk.Label(win, text="Введите свой никнейм")
 name_lbl.pack()
 row = tk.Entry(win, width=30, justify="center")
@@ -48,6 +48,29 @@ def find(vector:str):
             return result
     return ''
 
+
+class Grid:
+    def __init__(self, screen, color):
+        self.screen = screen
+        self.x = 0
+        self.y = 0
+        self.start_size = 200
+        self.size = self.start_size
+        self.color = color
+
+    def update(self, param:list[int]):
+        x, y, L = param
+        self.size = self.start_size // L
+        self.x = -self.size + (-x) % self.size
+        self.y = -self.size + (-y) % self.size
+
+    def draw(self):
+        for i in range(WIDTH // self.size + 2):
+            pygame.draw.line(self.screen, self.color, (self.x + i * self.size + i, 0), (self.x + i * self.size + i, WIDTH), 1)
+
+        for i in range(HEIGHT // self.size + 2):
+            pygame.draw.line(self.screen, self.color, (self.y + i * self.size + i, 0), (self.y + i * self.size + i, HEIGHT), 1)
+
 def draw_bacteria(data:list[str]):
     for num, bac in enumerate(data):
         data = bac.split(" ")
@@ -62,6 +85,12 @@ def scroll(event):
     color = combo.get()
     style.configure("TCombobox", fieldbackground=color, background="white")
 
+def draw_text(x, y, radius, text, color):
+    font = pygame.font.Font(None, radius)
+    text = font.render(text, True, color)
+    rect = text.get_rect(center = (x, y))
+    dis.blit(text, rect)
+
 combo = ttk.Combobox(win, values=colors, textvariable=color)
 combo.bind("<<ComboboxSelected>>", scroll)
 combo.pack()
@@ -73,7 +102,7 @@ win.mainloop()
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Настраиваем сокет
 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Отключение пакетирование
 
-sock.connect(("localhost", 15200))  # Подключаемся к server через ip и порт
+sock.connect(("localhost", 1000))  # Подключаемся к server через ip и порт
 sock.send(("color:<" + name + "," + color + ">").encode())
 pygame.init()
 WIDTH = 800
@@ -83,6 +112,7 @@ old = (0, 0)
 radius = 50
 dis = pygame.display.set_mode((WIDTH, HEIGHT))# Задаём размеры окошка
 pygame.display.set_caption("Бактерии") # Задаём имя окошка
+grid = Grid(dis, "red")
 run = True
 while run:
     for event in pygame.event.get():
@@ -105,10 +135,15 @@ while run:
     dis.fill('gray')
     pygame.draw.circle(dis, color, CC, radius)
     if data != [""]:
-        radius = int(data[0])
+        param = list(map(int, data[0].split(" ")))
+        radius = param[0]
+        grid.update(param[1:])
+        grid.draw()
         draw_bacteria(data[1:])
     pygame.display.update()
-    #sock.send("Привет".encode())
+    pygame.display.update()
+    pygame.display.update()
+    sock.send("Привет".encode())
     # Мы отправляем команду и кодируем
 
 pygame.quit()

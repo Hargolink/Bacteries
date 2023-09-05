@@ -23,7 +23,7 @@ colors = ['Maroon', 'DarkRed', 'FireBrick', 'Red', 'Salmon', 'Tomato',
 
 main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Настраиваем сокет
 main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Отключение пакетирование
-main_socket.bind(("localhost", 15200))  # ip и порт привязываем к сокету
+main_socket.bind(("localhost", 1000))  # ip и порт привязываем к сокету
 main_socket.setblocking(False)  # блокируем завершение программы
 main_socket.listen(5)  # Прослушка входящих соединений, 5 одновременных
 print("Сокет создался")
@@ -176,8 +176,7 @@ class LocalPlayer:
         self.color = self.db.color
         self.w_vision = self.db.w_vision
         self.h_vision = self.db.h_vision
-        s.merge(self.db)
-        s.commit()
+        return self
 
 class Food:
     def __init__(self, x, y, size, color):
@@ -185,12 +184,6 @@ class Food:
         self.y = y
         self.size = size
         self.color = color
-
-class Grid:
-    def __init__(self, screen, color):
-
-
-
 
 
 players = {}
@@ -212,11 +205,8 @@ if need >= 0:
         s.commit()
         locale_mob = LocalPlayer(mob1.id, mob1.name, None, None).load()
         players[mob1.id] = locale_mob
-    tick = -1
-    server_work = True
-    while server_work:
-        clock.tick(FPS)
-        tick += 1
+tick = -1
+server_work = True
 
 food_list = []
 need = FOOD_QUANTITY - len(food_list)
@@ -225,7 +215,9 @@ for i in range(need):
                           color = random.choice(colors)))
 
 
-while works:
+while server_work:
+    clock.tick(FPS)
+    tick += 1
     clock.tick(FPS)
     if tick % 200 == 0:
         try:
@@ -274,13 +266,13 @@ while works:
 
 
         for j in range(i + 1, len(pairs)):
-            hero_1: Player = pairs[i][1]
-            hero_2: Player = pairs[j][1]
+            hero_1: LocalPlayer = pairs[i][1]
+            hero_2: LocalPlayer = pairs[j][1]
             dist_x = abs(hero_2.x - hero_1.x)
             dist_y = abs(hero_2.y - hero_1.y)
             if abs(dist_x) <= hero_1.w_vision // 2 + hero_2.size and abs(dist_y) <= hero_1.h_vision // 2 + hero_2.size: # # Нужно доделать зона видимости
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
-                if distn <= hero_1.size and hero_1 >= 1.1 * hero_2.size:
+                if distn <= hero_1.size and hero_1.size >= 1.1 * hero_2.size:
                     hero_1.size = math.sqrt(hero_1.size ** 2 + hero_2.size ** 2)
                     hero_1.new_speed()
                     hero_2.size, hero_2.speed_x, hero_2.speed_y = 0, 0, 0
@@ -290,12 +282,15 @@ while works:
                         y_ = str(round(dist_y / hero_1.L))
                         size_ = str(round(hero_2.size / hero_1.L))
                         color_ = hero_2.color
+                        name_ = hero_2.name
                         data = x_ + " " + y_ + " " + size_ + " " + color_
+                        if hero_2.size >= 30 * hero_1.L:
+                            data += " " + name_
                         visible_bacteries[hero_1.id].append(data)
 
             if abs(dist_x) <= hero_2.w_vision // 2 + hero_1.size and abs(dist_y) <= hero_2.h_vision // 2 + hero_1.size: # Нужно доделать зона видимос
                 distn = math.sqrt(dist_x ** 2 + dist_y ** 2)
-                if distn <= hero_2.size and hero_2 >= 1.1 * hero_1.size:
+                if distn <= hero_2.size and hero_2.size >= 1.1 * hero_1.size:
                     hero_2.size = math.sqrt(hero_2.size ** 2 + hero_1.size ** 2)
                     hero_2.new_speed()
                     hero_1.size, hero_1.speed_x, hero_1.speed_y = 0, 0, 0
@@ -304,7 +299,10 @@ while works:
                         y_ = str(round(-dist_y / hero_2.L))
                         size_ = str(round(hero_1.size / hero_2.L))
                         color_ = hero_1.color
+                        name_ = hero_1.name
                         data = x_ + " " + y_ + " " + size_ + " " + color_
+                        if hero_1.size >= 30 * hero_2.L:
+                            data += " " + name_
                         visible_bacteries[hero_2.id].append(data)
 
         for id in list(players):
@@ -318,7 +316,11 @@ while works:
         for id in list(players):
             if players[id].sock is not None:
                 r_ = str(round(players[id].size / players[id].L))
+                x_ = str(round(players[id].x / players[id].L))
+                y_ = str(round(players[id].y / players[id].L))
+                L_ = str(round(players[id].L))
                 visible_bacteries[id] = [r_] + visible_bacteries[id]
+                visible_bacteries[id] = [r_ + " ", x_ + " ", y_ + " ", L_ + " "] + visible_bacteries[id]
                 visible_bacteries[id] = "<" + ",".join(visible_bacteries[id]) + ">"
                 try:
                     players[id].sock.send(visible_bacteries[id].encode())
@@ -352,13 +354,13 @@ while works:
         if event == pygame.QUIT:
             works = False
     dis.fill('black')
-    for id in players:
+    for id in list(players):
         player = players[id]
         x = player.x * WIDTH_SERVER // WIDTH_ROOM
         y = player.y * HEIGHT_SERVER // HEIGHT_ROOM
         size = player.size * HEIGHT_SERVER // HEIGHT_ROOM
         pygame.draw.circle(dis, player.color, (x, y), size)
-    for id in players:
+    for id in list(players):
         player = players[id]
         player.update()
 
