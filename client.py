@@ -79,6 +79,8 @@ def draw_bacteria(data:list[str]):
         size = int(data[2])
         color = data[3]
         pygame.draw.circle(dis, color, (x, y), size)
+        if len(data) > 4:
+            draw_text(x, y, size // 2, data[4], color = 'black')
 
 def scroll(event):
     global color
@@ -130,10 +132,12 @@ while run:
                 msg = f"<{vector[0]},{vector[1]}>"# В msg хранятся новые координаты
                 sock.send(msg.encode())
     data = sock.recv(buffer).decode()
+    data = find(data).split(",")
     print("Получил", data)
     #print(data)
     dis.fill('gray')
     pygame.draw.circle(dis, color, CC, radius)
+    draw_text(CC[0], CC[1], radius // 2, name, color = 'black')
     if data != [""]:
         param = list(map(int, data[0].split(" ")))
         radius = param[0]
